@@ -9,7 +9,7 @@ import (
 	"log"
 )
 
-func Prometheus(router *chi.Mux) {
+func Prometheus(cfg Config, router *chi.Mux) {
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
 		log.Fatal(err)
@@ -17,7 +17,7 @@ func Prometheus(router *chi.Mux) {
 	if err := reg.Register(collectors.NewGoCollector()); err != nil {
 		log.Fatal(err)
 	}
-	prometheusMiddleware := chiprometheus.New("test")
+	prometheusMiddleware := chiprometheus.New(cfg.Server.Service)
 	reg.MustRegister(prometheusMiddleware.Collectors()...)
 	promHandler := promhttp.InstrumentMetricHandler(
 		reg, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),

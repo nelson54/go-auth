@@ -18,7 +18,7 @@ func main() {
 
 	cfg := config.ReadConfig()
 	db := config.Database(cfg)
-	config.Prometheus(router)
+	config.Prometheus(cfg, router)
 	user.Routes(cfg, router, db)
 
 	fs := http.FileServer(http.Dir("static"))

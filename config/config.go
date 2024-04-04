@@ -11,9 +11,10 @@ type Config struct {
 		Salt string `yaml:"salt"`
 	} `yaml:"user"`
 	Server struct {
-		Port string `yaml:"port"`
-		Host string `yaml:"host"`
-		Root string `yaml:"root"`
+		Service string `yaml:"service"`
+		Port    string `yaml:"port"`
+		Host    string `yaml:"host"`
+		Root    string `yaml:"root"`
 	} `yaml:"server"`
 	Database struct {
 		Hostname   string `yaml:"hostname"`

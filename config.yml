@@ -1,6 +1,7 @@
 user:
   salt: "nkE43783NOhVnp5MBpZ-"
 server:
+  service: go_auth
   port: 3000
 database:
   hostname: 127.0.0.1
