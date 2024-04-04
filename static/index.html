@@ -25,7 +25,8 @@
         window.onload = async () => {
 
             const user = {username: "admin", password: "test1234668787"}
-            await putData("/auth", user)
+            await putData("/user", user) // create user
+            await putData("/auth", user) // fake login
         }
     </script>
 </head>
