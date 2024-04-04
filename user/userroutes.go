@@ -24,9 +24,10 @@ func Routes(cfg config.Config, router *chi.Mux, db *sql.DB) {
 
 		password := []byte(fmt.Sprintf("%s:%s", cfg.User.Salt, user.Password))
 		hash, _ := bcrypt.GenerateFromPassword(password, 10)
-		usr := Create(user.Username, string(hash))
 
+		usr := Create(user.Username, string(hash))
 		insert, err := Insert(db, usr)
+
 		if err != nil {
 			log.Println(err)
 		}
@@ -46,10 +47,11 @@ func Routes(cfg config.Config, router *chi.Mux, db *sql.DB) {
 		err = bcrypt.CompareHashAndPassword(hashedPassword, authPassword)
 		if err != nil {
 			writer.Write([]byte("Failed to authenticate"))
+		} else {
+			response := fmt.Sprintf("Authenticated as %s", auth.Username)
+			writer.Write([]byte(response))
 		}
 
-		response := fmt.Sprintf("Authenticated as %s", auth.Username)
-		writer.Write([]byte(response))
 	})
 
 }
