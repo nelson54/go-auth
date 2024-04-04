@@ -1,0 +1,12 @@
+server:
+  port: 3000
+database:
+  hostname: 127.0.0.1
+  port : 5432
+  username: user
+  password: pass
+  database: auth
+  migrations: file://./migrations/db
+
+
+
