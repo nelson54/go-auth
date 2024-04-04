@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/go-auth.iml" filepath="$PROJECT_DIR$/go-auth.iml" />
+      <module fileurl="file://$PROJECT_DIR$/static.iml" filepath="$PROJECT_DIR$/static.iml" />
     </modules>
   </component>
 </project>

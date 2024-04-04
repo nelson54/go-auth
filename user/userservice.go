@@ -29,3 +29,22 @@ func Insert(db *sql.DB, user User) (User, error) {
 
 	return user, err
 }
+
+type GetUser struct {
+	userId   int64  `field:"user_id"`
+	Username string `field:"username"`
+	Password string `field:"password"`
+}
+
+func FindByUsername(db *sql.DB, username string) (User, error) {
+	var u = GetUser{}
+	stmt, err := db.Prepare("select user_id, password from users where username = $1")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(username).Scan(&u.userId, &u.Password)
+	user := User{userId: u.userId, Username: username, password: u.Password}
+	return user, err
+}

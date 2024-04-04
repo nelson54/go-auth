@@ -7,6 +7,9 @@ import (
 )
 
 type Config struct {
+	User struct {
+		Salt string `yaml:"salt"`
+	} `yaml:"user"`
 	Server struct {
 		Port string `yaml:"port"`
 		Host string `yaml:"host"`

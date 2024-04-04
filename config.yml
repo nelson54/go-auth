@@ -1,3 +1,5 @@
+user:
+  salt: "nkE43783NOhVnp5MBpZ-"
 server:
   port: 3000
 database:
