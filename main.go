@@ -2,35 +2,50 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"go_auth/config"
 	"go_auth/user"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
-	router := chi.NewRouter()
-
-	router.Use(middleware.Logger)
-
 	cfg := config.ReadConfig()
+	config.Logger(cfg)
 	db := config.Database(cfg)
-	config.Prometheus(cfg, router)
+
+	router := http.NewServeMux()
+	handler := config.Prometheus(cfg, router)
+
 	user.Routes(cfg, router, db)
 
-	fs := http.FileServer(http.Dir("static"))
-	router.Handle("/static/*", http.StripPrefix("/static/", fs))
+	fileServer := http.FileServer(http.Dir("static"))
+	router.Handle("/static/", http.StripPrefix("/static/", fileServer))
+
+	// router.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+	// 	writer.Write([]byte("/"))
+	// })
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = cfg.Server.Port
 	}
 
-	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%s", port), router); err != nil {
-		log.Println(err)
+	server := &http.Server{
+		Addr:           fmt.Sprintf(":%s", port),
+		Handler:        handler,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
+
+	slog.Info(fmt.Sprintf("server listening at %s", port))
+	if err := server.ListenAndServe(); err != nil {
+		msg := fmt.Sprintf("error while serving: %s", err)
+		slog.Error(msg)
+		log.Panicf(msg)
+	}
+
 }

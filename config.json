@@ -1,0 +1,23 @@
+{
+
+  "user": {
+    "salt": "nkE43783NOhVnp5MBpZ-"
+  },
+
+  "server": {
+    "metrics": "/metrics",
+    "service": "go_auth",
+    "port": "3080"
+  },
+  "database": {
+    "hostname": "127.0.0.1",
+    "port": "5432",
+    "username": "user",
+    "password": "pass",
+    "database": "auth",
+    "migrations": "file://./migrations/db"
+  },
+  "log": {
+    "path": "./log/app.log"
+  }
+}

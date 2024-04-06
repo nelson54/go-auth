@@ -1,3 +1,4 @@
 main
 go_auth
 vendor
+log/*

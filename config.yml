@@ -2,7 +2,7 @@ user:
   salt: "nkE43783NOhVnp5MBpZ-"
 server:
   service: go_auth
-  port: 3000
+  port: 3080
 database:
   hostname: 127.0.0.1
   port : 5432
@@ -10,6 +10,3 @@ database:
   password: pass
   database: auth
   migrations: file://./migrations/db
-
-
-

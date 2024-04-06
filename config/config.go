@@ -1,48 +1,54 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
+	"encoding/json"
+	"fmt"
 	"log"
+	"log/slog"
 	"os"
 )
 
 type Config struct {
 	User struct {
-		Salt string `yaml:"salt"`
-	} `yaml:"user"`
+		Salt string `json:"salt"`
+	} `json:"user"`
 	Server struct {
-		Service string `yaml:"service"`
-		Port    string `yaml:"port"`
-		Host    string `yaml:"host"`
-		Root    string `yaml:"root"`
-	} `yaml:"server"`
+		Metrics string `json:"metrics"`
+		Service string `json:"service"`
+		Port    string `json:"port"`
+	} `json:"server"`
 	Database struct {
-		Hostname   string `yaml:"hostname"`
-		Port       string `yaml:"port"`
-		Username   string `yaml:"username"`
-		Password   string `yaml:"password"`
-		Database   string `yaml:"database"`
-		Migrations string `yaml:"migrations"`
-	} `yaml:"database"`
+		Hostname   string `json:"hostname"`
+		Port       string `json:"port"`
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		Database   string `json:"database"`
+		Migrations string `json:"migrations"`
+	} `json:"database"`
+	Log struct {
+		Path string `json:"path"`
+	} `json:"log"`
 }
 
 func ReadConfig() Config {
-	f, err := os.Open("config.yml")
+	configFile := "config.json"
+	f, err := os.Open(configFile)
 	if err != nil {
-		log.Println(err)
+		slog.Error(fmt.Sprintf("Could not open config file: %s", configFile), err)
 	}
+
 	defer func(f *os.File) {
 		err := f.Close()
 		if err != nil {
-			log.Println("Unable to close config file")
+			slog.Warn("Unable to close config file")
 		}
 	}(f)
 
 	var cfg Config
-	decoder := yaml.NewDecoder(f)
-	err = decoder.Decode(&cfg)
-	if err != nil {
-		log.Println(err)
+	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
+		msg := "Failed to parse config file."
+		slog.Error(msg)
+		log.Fatal(msg)
 	}
 
 	return cfg
