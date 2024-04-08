@@ -1,5 +1,6 @@
-user:
+auth:
   salt: "nkE43783NOhVnp5MBpZ-"
+  secret: "lk$98j(mncx725109jcoin&"
 server:
   service: go_auth
   port: 3080

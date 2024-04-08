@@ -1,6 +1,7 @@
 {
 
-  "user": {
+  "auth": {
+    "secret": "lk$98j(mncx725109jcoin&",
     "salt": "nkE43783NOhVnp5MBpZ-"
   },
 

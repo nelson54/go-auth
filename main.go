@@ -13,13 +13,13 @@ import (
 
 func main() {
 	cfg := config.ReadConfig()
-	config.Logger(cfg)
-	db := config.Database(cfg)
+	config.Logger()
+	db := config.Database()
 
 	router := http.NewServeMux()
-	handler := config.Prometheus(cfg, router)
+	handler := config.Prometheus(router)
 
-	user.Routes(cfg, router, db)
+	user.Routes(router, db)
 
 	fileServer := http.FileServer(http.Dir("static"))
 	router.Handle("/static/", http.StripPrefix("/static/", fileServer))

@@ -33,6 +33,21 @@ func Exists(db *sql.DB, username string) (bool, error) {
 	return count > 0, err
 }
 
+func Delete(db *sql.DB, userId string) bool {
+	stmt, err := db.Prepare("delete from users where user_id = $1")
+	if err != nil {
+		slog.Error("Unable to prepare select user exist statement.", err)
+		log.Fatal(err)
+	}
+
+	if err = stmt.QueryRow(userId).Err(); err != nil {
+		slog.Error("Unable to scan user exist row.", err)
+		return false
+	}
+
+	return true
+}
+
 func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 	sqlStatement := `
 		INSERT INTO users (username, password)

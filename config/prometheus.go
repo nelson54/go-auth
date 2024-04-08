@@ -42,14 +42,14 @@ func newCustomMetrics() customMetrics {
 	return *newMetrics
 }
 
-func Prometheus(cfg Config, router *http.ServeMux) http.Handler {
+func Prometheus(router *http.ServeMux) http.Handler {
 
 	slokMiddleware := middleware.New(middleware.Config{
-		Service:  cfg.Server.Service,
+		Service:  Config().Server.Service,
 		Recorder: metrics.NewRecorder(metrics.Config{}),
 	})
 
-	router.Handle(cfg.Server.Metrics, promhttp.Handler())
+	router.Handle(Config().Server.Metrics, promhttp.Handler())
 
 	handler := std.Handler("", slokMiddleware, router)
 

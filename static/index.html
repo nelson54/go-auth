@@ -4,29 +4,38 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <script type="application/ecmascript">
-        async function putData(url = "", data = {}) {
-            // Default options are marked with *
+        async function request(method = "GET", url = "", data = {}, additionalHeaders = {}) {
+            const headers = Object.assign({
+                "Content-Type": "application/json",
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+            }, additionalHeaders)
+
             const response = await fetch(url, {
-                method: "PUT", // *GET, POST, PUT, DELETE, etc.
+                method: method, // *GET, POST, PUT, DELETE, etc.
                 mode: "cors", // no-cors, *cors, same-origin
                 cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
                 credentials: "same-origin", // include, *same-origin, omit
-                headers: {
-                    "Content-Type": "application/json",
-                    // 'Content-Type': 'application/x-www-form-urlencoded',
-                },
+                headers,
                 redirect: "follow", // manual, *follow, error
                 referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
                 body: JSON.stringify(data), // body data type must match "Content-Type" header
             });
-            return response.text(); // parses JSON response into native JavaScript objects
+            return response// parses JSON response into native JavaScript objects
         }
 
         window.onload = async () => {
 
-            const user = {username: "admin", password: "test1234668787"}
-            await putData("/user", user) // create user
-            await putData("/auth", user) // fake login
+            const user = {username: "admin", password: "test1234"}
+            await request("DELETE", "/user")
+            await request("PUT", "/user", user) // create user
+            const authResponse = await request("PUT", "/auth", user); // auth
+            const token = await authResponse.text()
+            const authHeaders = {
+                "Authorization": `Bearer ${token}`
+            }
+            await request("DELETE", "/user", {}, authHeaders)
+
+
         }
     </script>
 </head>

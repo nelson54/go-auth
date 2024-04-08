@@ -11,14 +11,14 @@ import (
 	"log/slog"
 )
 
-func Database(cfg Config) *sql.DB {
+func Database() *sql.DB {
 	connStr := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.Database.Username,
-		cfg.Database.Password,
-		cfg.Database.Hostname,
-		cfg.Database.Port,
-		cfg.Database.Database,
+		Config().Database.Username,
+		Config().Database.Password,
+		Config().Database.Hostname,
+		Config().Database.Port,
+		Config().Database.Database,
 	)
 
 	// Connect to database
@@ -40,7 +40,7 @@ func Database(cfg Config) *sql.DB {
 	}
 
 	migration, err := migrate.NewWithDatabaseInstance(
-		cfg.Database.Migrations,
+		Config().Database.Migrations,
 		"postgres", driver)
 	if err != nil {
 		slog.Error("database migration failed to create", err)

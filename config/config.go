@@ -8,9 +8,12 @@ import (
 	"os"
 )
 
-type Config struct {
-	User struct {
-		Salt string `json:"salt"`
+var config Configuration
+
+type Configuration struct {
+	Auth struct {
+		Secret string `json:"secret"`
+		Salt   string `json:"salt"`
 	} `json:"user"`
 	Server struct {
 		Metrics string `json:"metrics"`
@@ -30,7 +33,11 @@ type Config struct {
 	} `json:"log"`
 }
 
-func ReadConfig() Config {
+func Config() Configuration {
+	return config
+}
+
+func ReadConfig() Configuration {
 	configFile := "config.json"
 	f, err := os.Open(configFile)
 	if err != nil {
@@ -44,12 +51,12 @@ func ReadConfig() Config {
 		}
 	}(f)
 
-	var cfg Config
+	var cfg Configuration
 	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
 		msg := "Failed to parse config file."
 		slog.Error(msg)
 		log.Fatal(msg)
 	}
-
+	config = cfg
 	return cfg
 }
