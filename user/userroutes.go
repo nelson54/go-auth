@@ -83,26 +83,29 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 		slog.Info(msg)
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(msg))
+		return
 	} else if err != nil {
 		slog.Info("failed to check if user exists")
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte("user could not be created"))
-	} else {
-		password := saltPassword(user.Password)
-		hash, _ := bcrypt.GenerateFromPassword(password, 10)
-
-		usr := Create(user.Username, string(hash))
-		insert, err := Insert(db, usr)
-
-		if err != nil {
-			slog.Error("Failed to create user", err)
-			writer.WriteHeader(http.StatusInternalServerError)
-			writer.Write([]byte("Unable to create user."))
-		}
-		writer.WriteHeader(http.StatusCreated)
-		response := fmt.Sprintf("Welcome %s", insert.Username)
-		writer.Write([]byte(response))
+		return
 	}
+	password := saltPassword(user.Password)
+	hash, _ := bcrypt.GenerateFromPassword(password, 10)
+
+	usr := Create(user.Username, string(hash))
+	insert, err := Insert(db, usr)
+
+	if err != nil {
+		slog.Error("Failed to create user", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		writer.Write([]byte("Unable to create user."))
+		return
+	}
+	writer.WriteHeader(http.StatusCreated)
+	response := fmt.Sprintf("Welcome %s", insert.Username)
+	writer.Write([]byte(response))
+
 }
 
 func authenticate(writer http.ResponseWriter, request *http.Request) {
