@@ -4,22 +4,35 @@ import (
 	"database/sql"
 	"log"
 	"log/slog"
+	"slices"
+)
+
+const (
+	AuthorityUser   = "ROLE_USER"
+	AuthorityAdmin  = "ROLE_ADMIN"
+	AuthoritySystem = "ROLE_SYSTEM"
 )
 
 type UserEntity struct {
 	userId   int64  `field:"user_id"`
 	Username string `field:"username"`
 	Password string `field:"password"`
+	Roles    []string
 }
 
 func Create(username, password string) UserEntity {
-	return UserEntity{Username: username, Password: password}
+	return UserEntity{
+		userId:   -1,
+		Username: username,
+		Password: password,
+		Roles:    []string{AuthorityUser},
+	}
 }
 
 func Exists(db *sql.DB, username string) (bool, error) {
 	stmt, err := db.Prepare("select count(user_id) from users where username = $1")
 	if err != nil {
-		slog.Error("Unable to prepare select user exist statement.", err)
+		slog.Error("Unable to prepare user exists statement.", err)
 		log.Fatal(err)
 	}
 
@@ -33,10 +46,16 @@ func Exists(db *sql.DB, username string) (bool, error) {
 	return count > 0, err
 }
 
-func Delete(db *sql.DB, userId string) bool {
-	stmt, err := db.Prepare("delete from users where user_id = $1")
+func Delete(db *sql.DB, userId int64) bool {
+	deleteUserRules(db, userId)
+
+	stmt, err := db.Prepare(`
+		DELETE 
+			FROM users 
+			WHERE user_id = $1;
+	`)
 	if err != nil {
-		slog.Error("Unable to prepare select user exist statement.", err)
+		slog.Error("Unable to prepare user delete statement.", err)
 		log.Fatal(err)
 	}
 
@@ -48,10 +67,26 @@ func Delete(db *sql.DB, userId string) bool {
 	return true
 }
 
+func deleteUserRules(db *sql.DB, userId int64) {
+	stmt, err := db.Prepare(`
+		DELETE
+			FROM user_roles
+			WHERE user_id = $1;
+	`)
+	if err != nil {
+		slog.Error("Unable to prepare user delete statement.", err)
+		log.Fatal(err)
+	}
+
+	if err = stmt.QueryRow(userId).Err(); err != nil {
+		slog.Error("Unable to scan user exist row.", err)
+	}
+}
+
 func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 	sqlStatement := `
-		INSERT INTO users (username, password)
-		VALUES ($1, $2)
+		INSERT INTO users (username, password, created_at, updated_at)
+		VALUES ($1, $2, current_timestamp, current_timestamp)
 		RETURNING user_id`
 
 	stmt, err := db.Prepare(sqlStatement)
@@ -60,8 +95,40 @@ func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 		log.Fatal(err)
 	}
 
-	err = stmt.QueryRow(user.Username, user.Password).Scan(&user.userId)
+	if err = stmt.QueryRow(user.Username, user.Password).Scan(&user.userId); err != nil {
+		return user, err
+	}
+
+	for _, v := range user.Roles {
+		grantRole(db, user, v)
+	}
+
 	return user, err
+}
+
+func GrantRole(db *sql.DB, user UserEntity, role string) bool {
+
+	if pos := slices.Index(user.Roles, role); user.userId > 0 && 0 > pos {
+		return false
+	}
+
+	return grantRole(db, user, role)
+}
+
+func grantRole(db *sql.DB, user UserEntity, role string) bool {
+	sqlStatement := `INSERT INTO user_roles (user_id, role) VALUES ($1, $2);`
+
+	stmt, err := db.Prepare(sqlStatement)
+	if err != nil {
+		slog.Error("Unable to prepare insert user statement.", err)
+		log.Fatal(err)
+	}
+
+	if err = stmt.QueryRow(user.userId, role).Err(); err != nil {
+		return false
+	}
+
+	return true
 }
 
 func FindByUsername(db *sql.DB, username string) (UserEntity, error) {
@@ -76,5 +143,30 @@ func FindByUsername(db *sql.DB, username string) (UserEntity, error) {
 
 	err = stmt.QueryRow(username).Scan(&user.userId, &user.Password)
 	user = UserEntity{userId: user.userId, Username: username, Password: user.Password}
+	user = populateUserRoles(db, user)
 	return user, err
+}
+
+func populateUserRoles(db *sql.DB, user UserEntity) UserEntity {
+	stmt, err := db.Prepare("select role from user_roles where user_id = $1")
+	if err != nil {
+		slog.Error("Unable to prepare select roles statement.", err)
+		log.Fatal(err)
+
+	}
+	roles := []string{}
+	rows, err := stmt.Query(user.userId)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var claim string
+		rows.Scan(&claim)
+		roles = append(roles, claim)
+	}
+
+	user.Roles = roles
+
+	return user
 }

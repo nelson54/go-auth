@@ -4,9 +4,8 @@ services:
     volumes:
       - "./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
 
-    ports:
-      - 9090:9090
     network_mode: host
+
   grafana:
     image: grafana/grafana
     volumes:
@@ -14,8 +13,9 @@ services:
       - "./docker/grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/main.yaml"
       - "./docker/grafana/dashboards:/var/lib/grafana/dashboards"
     ports:
-      - 3000:3000
+      - "3000:3000"
     network_mode: host
+
   loki:
     image: grafana/loki:2.9.2
     ports:
@@ -23,10 +23,25 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
 
   promtail:
-    image: grafana/promtail:2.9.2
+    build:
+      context: ./
+      dockerfile: ./docker/promtail/Dockerfile
+
     volumes:
       - "./docker/promtail/config.yml:/etc/promtail/config.yml"
-      - "./log:/var/log"
+      - "./log:/var/log/auth"
       - "~/docker/go_auth/promtail:/usr/data/promtail"
     command: -config.file=/etc/promtail/config.yml
 
+  postgres:
+    image: postgres:alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: auth
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    volumes:
+      - "~/.docker_mounts/auth:/var/lib/postgresql/data"

@@ -25,4 +25,18 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9323"]
 
+  - job_name: 'postgres'
+    static_configs:
+      - targets:
+          - localhost:5432
+    metrics_path: /probe
+    params:
+      auth_module: [foo]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 127.0.0.1:9116
 

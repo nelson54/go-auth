@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <script type="application/ecmascript">
-        async function request(method = "GET", url = "", data = {}, additionalHeaders = {}) {
+        async function request(method = "GET", url = "", additionalHeaders = {}, data) {
             const headers = Object.assign({
                 "Content-Type": "application/json",
                 // 'Content-Type': 'application/x-www-form-urlencoded',
             }, additionalHeaders)
+
+            const body = !data ? undefined : JSON.stringify(data)
+
+            console.log(body)
 
             const response = await fetch(url, {
                 method: method, // *GET, POST, PUT, DELETE, etc.
@@ -18,7 +22,7 @@
                 headers,
                 redirect: "follow", // manual, *follow, error
                 referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-                body: JSON.stringify(data), // body data type must match "Content-Type" header
+                body // body data type must match "Content-Type" header
             });
             return response// parses JSON response into native JavaScript objects
         }
@@ -27,13 +31,14 @@
 
             const user = {username: "admin", password: "test1234"}
             await request("DELETE", "/user")
-            await request("PUT", "/user", user) // create user
-            const authResponse = await request("PUT", "/auth", user); // auth
+            await request("PUT", "/user", undefined, user) // create user
+            const authResponse = await request("PUT", "/auth", undefined, user); // auth
             const token = await authResponse.text()
             const authHeaders = {
                 "Authorization": `Bearer ${token}`
             }
-            await request("DELETE", "/user", {}, authHeaders)
+            await request("GET", "/user", authHeaders)
+            await request("DELETE", "/user", authHeaders,  {})
 
 
         }
