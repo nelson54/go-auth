@@ -39,7 +39,7 @@ func Logger() {
 	textHandler := slog.NewTextHandler(
 		io.MultiWriter(os.Stdout, logFile),
 		slogOptions,
-	).WithAttrs([]slog.Attr{slog.String("service", Config().Server.Service)})
+	).WithAttrs([]slog.Attr{slog.String("userService", Config().Server.Service)})
 
 	logger := slog.New(textHandler)
 

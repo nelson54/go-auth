@@ -17,7 +17,7 @@ type Configuration struct {
 	} `json:"user"`
 	Server struct {
 		Metrics string `json:"metrics"`
-		Service string `json:"service"`
+		Service string `json:"userService"`
 		Port    string `json:"port"`
 	} `json:"server"`
 	Database struct {

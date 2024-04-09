@@ -1,4 +1,4 @@
-package user
+package userService
 
 import (
 	"database/sql"
@@ -14,19 +14,35 @@ const (
 )
 
 type UserEntity struct {
-	userId   int64  `field:"user_id"`
+	UserId   int64  `field:"user_id"`
 	Username string `field:"username"`
 	Password string `field:"password"`
 	Roles    []string
 }
 
-func Create(username, password string) UserEntity {
+func NewUserEntity(username, password string) UserEntity {
 	return UserEntity{
-		userId:   -1,
+		UserId:   -1,
 		Username: username,
 		Password: password,
 		Roles:    []string{AuthorityUser},
 	}
+}
+
+func FindByUsername(db *sql.DB, username string) (UserEntity, error) {
+	var user = UserEntity{}
+	stmt, err := db.Prepare("select user_id, password from users where username = $1")
+	if err != nil {
+		slog.Error("Unable to prepare find user by username statement.", err)
+		log.Fatal(err)
+
+	}
+	defer stmt.Close()
+
+	err = stmt.QueryRow(username).Scan(&user.UserId, &user.Password)
+	user = UserEntity{UserId: user.UserId, Username: username, Password: user.Password}
+	user = populateUserRoles(db, user)
+	return user, err
 }
 
 func Exists(db *sql.DB, username string) (bool, error) {
@@ -46,43 +62,6 @@ func Exists(db *sql.DB, username string) (bool, error) {
 	return count > 0, err
 }
 
-func Delete(db *sql.DB, userId int64) bool {
-	deleteUserRules(db, userId)
-
-	stmt, err := db.Prepare(`
-		DELETE 
-			FROM users 
-			WHERE user_id = $1;
-	`)
-	if err != nil {
-		slog.Error("Unable to prepare user delete statement.", err)
-		log.Fatal(err)
-	}
-
-	if err = stmt.QueryRow(userId).Err(); err != nil {
-		slog.Error("Unable to scan user exist row.", err)
-		return false
-	}
-
-	return true
-}
-
-func deleteUserRules(db *sql.DB, userId int64) {
-	stmt, err := db.Prepare(`
-		DELETE
-			FROM user_roles
-			WHERE user_id = $1;
-	`)
-	if err != nil {
-		slog.Error("Unable to prepare user delete statement.", err)
-		log.Fatal(err)
-	}
-
-	if err = stmt.QueryRow(userId).Err(); err != nil {
-		slog.Error("Unable to scan user exist row.", err)
-	}
-}
-
 func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 	sqlStatement := `
 		INSERT INTO users (username, password, created_at, updated_at)
@@ -95,7 +74,7 @@ func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 		log.Fatal(err)
 	}
 
-	if err = stmt.QueryRow(user.Username, user.Password).Scan(&user.userId); err != nil {
+	if err = stmt.QueryRow(user.Username, user.Password).Scan(&user.UserId); err != nil {
 		return user, err
 	}
 
@@ -108,7 +87,7 @@ func Insert(db *sql.DB, user UserEntity) (UserEntity, error) {
 
 func GrantRole(db *sql.DB, user UserEntity, role string) bool {
 
-	if pos := slices.Index(user.Roles, role); user.userId > 0 && 0 > pos {
+	if pos := slices.Index(user.Roles, role); user.UserId > 0 && 0 > pos {
 		return false
 	}
 
@@ -124,27 +103,40 @@ func grantRole(db *sql.DB, user UserEntity, role string) bool {
 		log.Fatal(err)
 	}
 
-	if err = stmt.QueryRow(user.userId, role).Err(); err != nil {
+	if err = stmt.QueryRow(user.UserId, role).Err(); err != nil {
 		return false
 	}
 
 	return true
 }
 
-func FindByUsername(db *sql.DB, username string) (UserEntity, error) {
-	var user = UserEntity{}
-	stmt, err := db.Prepare("select user_id, password from users where username = $1")
+func Delete(db *sql.DB, userId int64) bool {
+	deleteUserRules(db, userId)
+
+	stmt, err := db.Prepare(`DELETE FROM users WHERE user_id = $1;`)
 	if err != nil {
-		slog.Error("Unable to prepare find user by username statement.", err)
+		slog.Error("Unable to prepare user delete statement.", err)
 		log.Fatal(err)
-
 	}
-	defer stmt.Close()
 
-	err = stmt.QueryRow(username).Scan(&user.userId, &user.Password)
-	user = UserEntity{userId: user.userId, Username: username, Password: user.Password}
-	user = populateUserRoles(db, user)
-	return user, err
+	if err = stmt.QueryRow(userId).Err(); err != nil {
+		slog.Error("Unable to scan user exist row.", err)
+		return false
+	}
+
+	return true
+}
+
+func deleteUserRules(db *sql.DB, userId int64) {
+	stmt, err := db.Prepare(`DELETE FROM user_roles WHERE user_id = $1;`)
+	if err != nil {
+		slog.Error("Unable to prepare user delete statement.", err)
+		log.Fatal(err)
+	}
+
+	if err = stmt.QueryRow(userId).Err(); err != nil {
+		slog.Error("Unable to scan user exist row.", err)
+	}
 }
 
 func populateUserRoles(db *sql.DB, user UserEntity) UserEntity {
@@ -155,7 +147,7 @@ func populateUserRoles(db *sql.DB, user UserEntity) UserEntity {
 
 	}
 	roles := []string{}
-	rows, err := stmt.Query(user.userId)
+	rows, err := stmt.Query(user.UserId)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"go_auth/config"
+	"go_auth/user/userService"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 type ctxKey string
 
-type authenticationContext struct {
+type AuthenticationContext struct {
 	UserId   int64
 	Username string
 	Roles    []string
@@ -21,12 +22,12 @@ type authenticationContext struct {
 
 const ctxAuthKey = ctxKey("auth")
 
-func setAuthContext(ctx context.Context, authContext *authenticationContext) context.Context {
+func setAuthContext(ctx context.Context, authContext *AuthenticationContext) context.Context {
 	return context.WithValue(ctx, ctxAuthKey, authContext)
 }
 
-func getAuthContext(ctx context.Context) *authenticationContext {
-	return ctx.Value(ctxAuthKey).(*authenticationContext)
+func getAuthContext(ctx context.Context) *AuthenticationContext {
+	return ctx.Value(ctxAuthKey).(*AuthenticationContext)
 }
 
 type additionalClaims struct {
@@ -48,8 +49,8 @@ func AuthMiddleware(handler http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *authenticationContext) {
-	var authContext authenticationContext
+func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *AuthenticationContext) {
+	var authContext AuthenticationContext
 
 	authToken := request.Header.Get("Authorization")
 	if authToken == "" {
@@ -91,10 +92,10 @@ func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *auth
 	return false, &authContext
 }
 
-func createToken(entity UserEntity) (string, error) {
+func createToken(entity userService.UserEntity) (string, error) {
 
 	claims := additionalClaims{
-		entity.userId,
+		entity.UserId,
 		entity.Username,
 		entity.Roles,
 		jwt.RegisteredClaims{
@@ -115,7 +116,7 @@ func verifyToken(tokenString string) (*jwt.Token, error) {
 		return []byte(config.Config().Auth.Secret), nil
 	})
 
-	if !token.Valid {
+	if token == nil || !token.Valid {
 		return token, fmt.Errorf("invalid token")
 	}
 

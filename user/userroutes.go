@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go_auth/config"
+	"go_auth/user/userService"
 	"golang.org/x/crypto/bcrypt"
 	"log/slog"
 	"net/http"
@@ -26,20 +27,18 @@ var db *sql.DB
 
 func Routes(router *http.ServeMux, database *sql.DB) {
 	db = database
-	router.HandleFunc("GET /user", AuthMiddleware(getUser))
 
-	router.HandleFunc("DELETE /user", AuthMiddleware(deleteUser))
-
-	router.HandleFunc("PUT /user", createUser)
-
-	router.HandleFunc("PUT /auth", authenticate)
+	router.HandleFunc("GET /user", AuthMiddleware(currentUserRoute))
+	router.HandleFunc("DELETE /user", AuthMiddleware(deleteUserRoute))
+	router.HandleFunc("PUT /user", createUserRoute)
+	router.HandleFunc("PUT /auth", authenticateRoute)
 }
 
 func saltPassword(password string) []byte {
 	return []byte(fmt.Sprintf("%s:%s", config.Config().Auth.Salt, password))
 }
 
-func getUser(writer http.ResponseWriter, request *http.Request) {
+func currentUserRoute(writer http.ResponseWriter, request *http.Request) {
 	user := UserDto{}
 
 	authContext := getAuthContext(request.Context())
@@ -56,13 +55,12 @@ func getUser(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	writer.Write(userBytes)
-
 }
 
-func deleteUser(writer http.ResponseWriter, request *http.Request) {
+func deleteUserRoute(writer http.ResponseWriter, request *http.Request) {
 	authContext := getAuthContext(request.Context())
 
-	if ok := Delete(db, authContext.UserId); ok {
+	if ok := userService.Delete(db, authContext.UserId); ok {
 		msg := "Deleted user"
 		writer.Write([]byte(msg))
 	} else {
@@ -71,10 +69,9 @@ func deleteUser(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(http.StatusInternalServerError)
 		writer.Write([]byte(msg))
 	}
-
 }
 
-func createUser(writer http.ResponseWriter, request *http.Request) {
+func createUserRoute(writer http.ResponseWriter, request *http.Request) {
 	user := createUserDto{}
 	if err := json.NewDecoder(request.Body).Decode(&user); err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -82,7 +79,7 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if exists, err := Exists(db, user.Username); exists {
+	if exists, err := userService.Exists(db, user.Username); exists {
 		msg := "user already exists"
 		slog.Info(msg)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -97,8 +94,8 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 	password := saltPassword(user.Password)
 	hash, _ := bcrypt.GenerateFromPassword(password, 10)
 
-	usr := Create(user.Username, string(hash))
-	insert, err := Insert(db, usr)
+	usr := userService.NewUserEntity(user.Username, string(hash))
+	insert, err := userService.Insert(db, usr)
 
 	if err != nil {
 		slog.Error("Failed to create user", err)
@@ -111,12 +108,12 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 	writer.Write([]byte(response))
 }
 
-func authenticate(writer http.ResponseWriter, request *http.Request) {
+func authenticateRoute(writer http.ResponseWriter, request *http.Request) {
 	var auth createUserDto
 	err := json.NewDecoder(request.Body).Decode(&auth)
 	authPassword := saltPassword(auth.Password)
 
-	userFromDb, _ := FindByUsername(db, auth.Username)
+	userFromDb, _ := userService.FindByUsername(db, auth.Username)
 	hashedPassword := []byte(userFromDb.Password)
 
 	err = bcrypt.CompareHashAndPassword(hashedPassword, authPassword)

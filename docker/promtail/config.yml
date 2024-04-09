@@ -19,10 +19,10 @@ scrape_configs:
       __path__: /var/log/*log
   pipeline_stages:
   - match:
-      selector: '{service="go_auth"}'
+      selector: '{userService="go_auth"}'
       stages:
       - regex:
-          expression: 'time=(?P<time>[^\s]+).*level=(?P<level>[^\s]+).*source=(?P<source>.*).*msg=\"(?P<msg>.*)\".*service=(?P<service>.*)'
+          expression: 'time=(?P<time>[^\s]+).*level=(?P<level>[^\s]+).*source=(?P<source>.*).*msg=\"(?P<msg>.*)\".*userService=(?P<userService>.*)'
       - timestamp:
           source: time
           format: 2024-04-05T22:43:56.511-04:00
