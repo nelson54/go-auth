@@ -150,8 +150,8 @@ func populateUserRoles(user UserEntity) UserEntity {
 	if err != nil {
 		slog.Error("Unable to prepare select roles statement.", err)
 		log.Fatal(err)
-
 	}
+
 	roles := []string{}
 	rows, err := stmt.Query(user.UserId)
 	if err != nil {
@@ -160,7 +160,10 @@ func populateUserRoles(user UserEntity) UserEntity {
 	defer rows.Close()
 	for rows.Next() {
 		var claim string
-		rows.Scan(&claim)
+		err := rows.Scan(&claim)
+		if err != nil {
+			return user
+		}
 		roles = append(roles, claim)
 	}
 
