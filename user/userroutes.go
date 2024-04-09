@@ -63,10 +63,13 @@ func deleteUser(writer http.ResponseWriter, request *http.Request) {
 	authContext := getAuthContext(request.Context())
 
 	if ok := Delete(db, authContext.UserId); ok {
-		writer.Write([]byte("Deleted user"))
+		msg := "Deleted user"
+		writer.Write([]byte(msg))
 	} else {
+		msg := "Unable to delete user"
+		slog.Warn(msg, authContext.UserId)
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("Unable to delete user"))
+		writer.Write([]byte(msg))
 	}
 
 }
@@ -76,6 +79,7 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 	if err := json.NewDecoder(request.Body).Decode(&user); err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		writer.Write([]byte("could not parse create user request"))
+		return
 	}
 
 	if exists, err := Exists(db, user.Username); exists {
@@ -103,9 +107,8 @@ func createUser(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	writer.WriteHeader(http.StatusCreated)
-	response := fmt.Sprintf("Welcome %s", insert.Username)
+	response := fmt.Sprintf("Created User %s", insert.Username)
 	writer.Write([]byte(response))
-
 }
 
 func authenticate(writer http.ResponseWriter, request *http.Request) {

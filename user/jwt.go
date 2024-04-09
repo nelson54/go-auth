@@ -84,11 +84,11 @@ func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *auth
 		authContext.Roles = roles
 
 		return true, &authContext
-	} else {
-		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write([]byte("Invalid authorization"))
-		return false, &authContext
 	}
+
+	writer.WriteHeader(http.StatusUnauthorized)
+	writer.Write([]byte("Invalid authorization"))
+	return false, &authContext
 }
 
 func createToken(entity UserEntity) (string, error) {
