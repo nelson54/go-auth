@@ -55,14 +55,14 @@ func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *Auth
 	authToken := request.Header.Get("Authorization")
 	if authToken == "" {
 		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write([]byte("not authorized."))
+		writeJson(writer, Msg("not authorized."))
 		return false, &authContext
 	}
 
 	authorization := strings.Split(authToken, " ")
 	if len(authorization) > 2 || authorization[0] == "Bearer:" {
 		writer.WriteHeader(http.StatusBadRequest)
-		writer.Write([]byte("badly formatted authorization."))
+		writeJson(writer, Msg("badly formatted authorization."))
 		return false, &authContext
 	}
 
@@ -70,7 +70,7 @@ func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *Auth
 	if err != nil {
 		slog.Warn("Unable to authorize", err)
 		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write([]byte("Invalid authorization."))
+		writeJson(writer, Msg("Invalid authorization."))
 		return false, &authContext
 	}
 
@@ -88,7 +88,7 @@ func AuthHandler(writer http.ResponseWriter, request *http.Request) (bool, *Auth
 	}
 
 	writer.WriteHeader(http.StatusUnauthorized)
-	writer.Write([]byte("Invalid authorization"))
+	writeJson(writer, Msg("Invalid authorization"))
 	return false, &authContext
 }
 

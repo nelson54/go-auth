@@ -23,10 +23,16 @@ type UserDto struct {
 	Roles    []string `json:"roles"`
 }
 
-var db *sql.DB
+type JsonMessage struct {
+	Message string `json:"message"`
+}
+
+func Msg(msg string) JsonMessage {
+	return JsonMessage{msg}
+}
 
 func Routes(router *http.ServeMux, database *sql.DB) {
-	db = database
+	userService.SetDatabase(database)
 
 	router.HandleFunc("GET /user", AuthMiddleware(currentUserRoute))
 	router.HandleFunc("DELETE /user", AuthMiddleware(deleteUserRoute))
@@ -47,27 +53,20 @@ func currentUserRoute(writer http.ResponseWriter, request *http.Request) {
 	user.Username = authContext.Username
 	user.Roles = authContext.Roles
 
-	userBytes, err := json.Marshal(user)
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("Unable to retrieve user"))
-		return
-	}
-
-	writer.Write(userBytes)
+	writeJson(writer, user)
 }
 
 func deleteUserRoute(writer http.ResponseWriter, request *http.Request) {
 	authContext := getAuthContext(request.Context())
 
-	if ok := userService.Delete(db, authContext.UserId); ok {
-		msg := "Deleted user"
-		writer.Write([]byte(msg))
+	if ok := userService.Delete(authContext.UserId); ok {
+		msg := fmt.Sprintf("Deleted user: %d", authContext.UserId)
+		writeJson(writer, Msg(msg))
 	} else {
-		msg := "Unable to delete user"
-		slog.Warn(msg, authContext.UserId)
+		msg := fmt.Sprintf("Unable to delete user: %d", authContext.UserId)
+		slog.Warn(msg)
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte(msg))
+		writeJson(writer, Msg(msg))
 	}
 }
 
@@ -75,37 +74,39 @@ func createUserRoute(writer http.ResponseWriter, request *http.Request) {
 	user := createUserDto{}
 	if err := json.NewDecoder(request.Body).Decode(&user); err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
-		writer.Write([]byte("could not parse create user request"))
+		writeJson(writer, Msg("could not parse create user request"))
 		return
 	}
 
-	if exists, err := userService.Exists(db, user.Username); exists {
+	if exists, err := userService.Exists(user.Username); exists {
 		msg := "user already exists"
 		slog.Info(msg)
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte(msg))
+		writeJson(writer, Msg(msg))
 		return
 	} else if err != nil {
 		slog.Info("failed to check if user exists")
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("user could not be created"))
+		writeJson(writer, Msg("user could not be created"))
 		return
 	}
 	password := saltPassword(user.Password)
 	hash, _ := bcrypt.GenerateFromPassword(password, 10)
 
 	usr := userService.NewUserEntity(user.Username, string(hash))
-	insert, err := userService.Insert(db, usr)
+	insert, err := userService.Insert(usr)
 
 	if err != nil {
 		slog.Error("Failed to create user", err)
 		writer.WriteHeader(http.StatusInternalServerError)
-		writer.Write([]byte("Unable to create user."))
+		writeJson(writer, Msg("Unable to create user."))
 		return
 	}
 	writer.WriteHeader(http.StatusCreated)
 	response := fmt.Sprintf("Created User %s", insert.Username)
-	writer.Write([]byte(response))
+	slog.Info(response)
+	writeJson(writer, Msg(response))
+
 }
 
 func authenticateRoute(writer http.ResponseWriter, request *http.Request) {
@@ -113,25 +114,51 @@ func authenticateRoute(writer http.ResponseWriter, request *http.Request) {
 	err := json.NewDecoder(request.Body).Decode(&auth)
 	authPassword := saltPassword(auth.Password)
 
-	userFromDb, _ := userService.FindByUsername(db, auth.Username)
+	userFromDb, _ := userService.FindByUsername(auth.Username)
 	hashedPassword := []byte(userFromDb.Password)
 
 	err = bcrypt.CompareHashAndPassword(hashedPassword, authPassword)
 	if err != nil {
-		slog.Info("Failed to authenticate")
+		msg := "Failed to authenticate."
+		slog.Info(msg)
 		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write([]byte("Failed to authenticate"))
+		writeJson(writer, Msg(msg))
 		return
 	}
 
 	if token, err := createToken(userFromDb); err != nil {
-		slog.Info("Failed to authenticate.", err)
+		msg := "Failed to authenticate."
+		slog.Info(msg, err)
 		writer.WriteHeader(http.StatusUnauthorized)
-		writer.Write([]byte("Failed to authenticate."))
+		writeJson(writer, Msg(msg))
 		return
 	} else {
 		writer.WriteHeader(http.StatusCreated)
-		writer.Write([]byte(token))
+		write(writer, token)
 		return
 	}
+}
+
+func write(w http.ResponseWriter, msg string) {
+	if _, err := w.Write([]byte(msg)); err != nil {
+		slog.Warn("Failed to write http response.")
+	}
+}
+
+func writeJson(w http.ResponseWriter, strct interface{}) {
+	jsonBytes, err := json.Marshal(strct)
+	if err != nil {
+		msg := "Failed to marshal json."
+
+		slog.Warn(msg)
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJson(w, Msg(msg))
+
+		return
+	}
+
+	if _, err := w.Write(jsonBytes); err != nil {
+		slog.Warn("Failed to write http response.")
+	}
+
 }
