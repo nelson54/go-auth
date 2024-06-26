@@ -15,9 +15,11 @@ func main() {
 	cfg := config.ReadConfig()
 	config.Logger()
 	db := config.Database()
-
+	config.OtelContrib()
+	defer config.OtelShutDown()
+	defer config.LoggerShutDown()
 	router := http.NewServeMux()
-	handler := config.Prometheus(router)
+	//handler := config.Prometheus(router)
 
 	user.Routes(router, db)
 
@@ -35,7 +37,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:           fmt.Sprintf(":%s", port),
-		Handler:        handler,
+		Handler:        router,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,

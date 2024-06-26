@@ -1,4 +1,4 @@
 main
 go_auth
 vendor
-log/*
+logs/*

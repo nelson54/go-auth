@@ -21,6 +21,12 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:3080"]
 
+  - job_name: 'otel-collector'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['localhost:8889']
+      - targets: ['localhost:8888']
+
   - job_name: docker
     static_configs:
       - targets: ["localhost:9323"]

@@ -2,24 +2,22 @@ package config
 
 import (
 	"fmt"
-	"io"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"log"
 	"log/slog"
 	"os"
 )
 
+var loggerShutDown func()
+
+func LoggerShutDown() {
+	loggerShutDown()
+}
+
 func Logger() {
 	path, _ := os.Getwd()
 
 	slog.Info(path)
-
-	replacer := func(groups []string, a slog.Attr) slog.Attr {
-		if a.Key == slog.SourceKey {
-			source := a.Value.Any().(*slog.Source)
-			source.File = source.File[len(path):]
-		}
-		return a
-	}
 
 	LOG_FILE := Config().Log.Path
 	// open log file
@@ -29,19 +27,13 @@ func Logger() {
 		slog.Error(msg, err)
 		log.Panic(err)
 	}
-	//defer logFile.Close()
-
-	slogOptions := &slog.HandlerOptions{
-		AddSource:   true,
-		ReplaceAttr: replacer,
+	loggerShutDown = func() {
+		logFile.Close()
 	}
 
-	textHandler := slog.NewTextHandler(
-		io.MultiWriter(os.Stdout, logFile),
-		slogOptions,
-	).WithAttrs([]slog.Attr{slog.String("userService", Config().Server.Service)})
+	handler := otelslog.NewHandler("default-logger")
 
-	logger := slog.New(textHandler)
+	logger := slog.New(handler)
 
 	slog.SetDefault(logger)
 }

@@ -34,10 +34,15 @@ func Msg(msg string) JsonMessage {
 func Routes(router *http.ServeMux, database *sql.DB) {
 	userService.SetDatabase(database)
 
-	router.HandleFunc("GET /user", AuthMiddleware(currentUserRoute))
-	router.HandleFunc("DELETE /user", AuthMiddleware(deleteUserRoute))
-	router.HandleFunc("PUT /user", createUserRoute)
-	router.HandleFunc("PUT /auth", authenticateRoute)
+	router.Handle("GET /user", config.CreateHandler(
+		AuthMiddleware(currentUserRoute), "/user",
+	))
+
+	router.Handle("DELETE /user", config.CreateHandler(
+		AuthMiddleware(deleteUserRoute), "/user",
+	))
+	router.Handle("PUT /user", config.CreateHandler(createUserRoute, "/user"))
+	router.Handle("PUT /auth", config.CreateHandler(authenticateRoute, "/auth"))
 }
 
 func saltPassword(password string) []byte {

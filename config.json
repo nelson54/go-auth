@@ -19,6 +19,6 @@
     "migrations": "file://./migrations/db"
   },
   "log": {
-    "path": "./log/app.log"
+    "path": "./logs/app.log"
   }
 }

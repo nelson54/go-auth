@@ -3,8 +3,25 @@ services:
     image: prom/prometheus
     volumes:
       - "./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
-
+    command: [
+      "--config.file=/etc/prometheus/prometheus.yml",
+      "--enable-feature=remote-write-receiver",
+      "--enable-feature=exemplar-storage"
+    ]
     network_mode: host
+  otel-collector:
+    image: otel/opentelemetry-collector
+    restart: always
+    command: ["--config", "/etc/otel/config.yml", "${OTELCOL_ARGS}"]
+    volumes:
+      - "./docker/otel-collector/config.yml:/etc/otel/config.yml"
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "55679:55679" # zpages extension
 
   grafana:
     image: grafana/grafana
@@ -14,24 +31,29 @@ services:
       - "./docker/grafana/dashboards:/var/lib/grafana/dashboards"
     ports:
       - "3000:3000"
-    network_mode: host
-
+    depends_on:
+      - loki
+      - prometheus
+      - pyroscope
+      - tempo
+    extra_hosts:
+          - "host.docker.internal:host-gateway"
   loki:
     image: grafana/loki:2.9.2
     ports:
       - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-
-  promtail:
-    build:
-      context: ./
-      dockerfile: ./docker/promtail/Dockerfile
-
+    command: ["-config.expand-env=true", "-config.file=/etc/loki/loki.yaml"]
     volumes:
-      - "./docker/promtail/config.yml:/etc/promtail/config.yml"
-      - "./log:/var/log/auth"
-      - "~/docker/go_auth/promtail:/usr/data/promtail"
-    command: -config.file=/etc/promtail/config.yml
+      - "./docker/loki/loki.yaml:/etc/loki/loki.yaml"  #promtail:
+  #  build:
+  #    context: ./
+  #    dockerfile: ./docker/promtail/Dockerfile
+  #
+  #  volumes:
+  #    - "./docker/promtail/config.yml:/etc/promtail/config.yml"
+  #    - "./log:/var/log/auth"
+  #    - "~/docker/go_auth/promtail:/usr/data/promtail"
+  #  command: -config.file=/etc/promtail/config.yml
 
   postgres:
     image: postgres:alpine
@@ -44,4 +66,47 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
 
     volumes:
-      - "~/.docker_mounts/auth:/var/lib/postgresql/data"
+      - "postgres_data:/var/lib/postgresql/data"
+
+  tempo-init:
+    image: &tempoImage grafana/tempo:latest
+    user: root
+    entrypoint:
+      - "chown"
+      - "10001:10001"
+      - "/var/tempo"
+    volumes:
+      - tempo-data:/var/tempo
+
+  pyroscope:
+    hostname: pyroscope
+    container_name: pyroscope
+    image: "pyroscope/pyroscope:latest"
+    deploy:
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "4040:4040"
+    command:
+      - "server"
+    volumes:
+      - ./docker/pyroscope/pyroscope.yaml:/etc/pyroscope/server.yaml
+
+  tempo:
+    image: *tempoImage
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./docker/tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo-data:/var/tempo
+    ports:
+      - "14268"  # jaeger ingest
+      - "3200"   # tempo
+      - "4317"  # otlp grpc
+      - "4318"  # otlp http
+      - "9411"   # zipkin
+    depends_on:
+      - tempo-init
+
+volumes:
+  tempo-data:
+  postgres_data:
